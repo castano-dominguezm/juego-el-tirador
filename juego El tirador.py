@@ -1,5 +1,6 @@
 from pygame import *
 from random import randint
+from time import time as timer 
 
 mixer.init()
 mixer.music.load('space.ogg')
@@ -16,11 +17,11 @@ score = 0
 goal = 10
 lost = 0
 max_lost = 3
+life = 3
 
 class GameSprite(sprite.Sprite):
     def __init__(self, player_image, player_x, player_y, size_x, size_y, player_speed):
         sprite.Sprite.__init__(self)
-
         self.image = transform.scale(image.load(player_image), (size_x, size_y))
         self.speed = player_speed
 
@@ -80,7 +81,7 @@ for i in range(1, 6):
 
 asteroids = sprite.Group()
 
-for i in range (1, 3):
+for i in range (1, 4):
     asteriod = Object("asteroid.png", randint (30, win_width -30), -40, 80, 50, randint(1, 7))
     asteroids.add(asteriod)
 
@@ -89,14 +90,22 @@ bullets = sprite.Group()
 finish = False
 run = True
 
+rel_time = False
+num_fire = 0
+
 while run:
     for e in event.get():
         if e.type == QUIT:
             run = False
         elif e.type == KEYDOWN:
             if e.key == K_SPACE:
-                fire_sound.play()
-                ship.fire()
+                if num_fire < 5 and not rel_time:
+                    num_fire += 1
+                    ship.fire()
+                    fire_sound.play()
+                if num_fire >= 3 and not rel_time:
+                    last_time = timer()
+                    rel_time = True
 
     if not finish:
         window.blit(background,(0,0))
@@ -106,6 +115,9 @@ while run:
 
         text_lose = font2.render("Fallos: " + str(lost), 1, (255, 255, 255))
         window.blit(text_lose, (10, 50))
+
+        lives_text = font2.render("Vidas: " + str(life), 1, (255, 255, 255))
+        window.blit(lives_text, (win_width - 120, 20))
 
         ship.update()
         monsters.update()
@@ -125,21 +137,43 @@ while run:
             monster = Enemy("ufo.png", randint(80, win_width - 80), -40, 80, 50, randint(1, 5))
             monsters.add(monster)
 
-        for i in range(1, 3):
-            asteroid = Enemy("asteroid.png", randint(30, win_width -30), -40, 80, 50, randint(1, 7))
-            asteroids.add(asteroid)
-
-        if sprite.spritecollide(ship, monsters, False) or lost >= max_lost:
-            finish = True
-            window.blit(lose, (200, 200))
+        if sprite.spritecollide(ship, monsters, True) or sprite.spritecollide(ship, asteroids, True):
+            life -= 1
+            if life <= 0:
+                finish = True
+                window.blit(lose, (200, 200))
 
         if sprite.spritecollide(ship, asteroids, False):
             finish = True
             window.blit(lose, (200, 200))
+
+        if rel_time:
+            now_time = timer()
+            if now_time - last_time < 3:
+                reload_text = font2.render("Espere un momento, recargando...", 1, (255, 0, 0))
+                window.blit(reload_text, (250, 450))
+            else:
+                num_fire = 0
+                rel_time = False
 
         if score >= goal:
             finish = True
             window.blit(win, (200, 200))
 
         display.update()
-    time.delay(30)
+        
+    else:
+        finish = False
+        score = 0
+        lost = 0
+        num_fire = 0
+        life = 3
+        for b in bullets:
+            b.kill()
+        for m in monsters:
+            m.kill()
+        for a in asteroids:
+            a.kill()
+        time.delay(3000)
+        
+time.delay(50)
