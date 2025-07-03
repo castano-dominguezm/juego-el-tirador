@@ -56,7 +56,7 @@ class Object(GameSprite):
     def update(self):
         self.rect.y += self.speed
         if self.rect.y > win_height:
-            self.rect.y = randint(80, win_width - 80)
+            self.rect.y = randint(30, win_width - 30)
             self.rect.y = 0
 
 class Bullet(GameSprite):
@@ -92,6 +92,9 @@ run = True
 
 rel_time = False
 num_fire = 0
+life_lost_time = 0
+show_life_lost = False
+life_message = ""
 
 while run:
     for e in event.get():
@@ -119,6 +122,13 @@ while run:
         lives_text = font2.render("Vidas: " + str(life), 1, (255, 255, 255))
         window.blit(lives_text, (win_width - 120, 20))
 
+        if show_life_lost:
+            if timer() - life_lost_time < 2:
+                lost_life_text = font2.render("¡PERDISTE UNA VIDA!", 1, (255, 100, 100))
+                window.blit(lost_life_text, (win_width//2 - 100, win_height//2))
+            else:
+                show_life_lost = False
+
         ship.update()
         monsters.update()
         bullets.update()
@@ -137,15 +147,17 @@ while run:
             monster = Enemy("ufo.png", randint(80, win_width - 80), -40, 80, 50, randint(1, 5))
             monsters.add(monster)
 
-        if sprite.spritecollide(ship, monsters, True) or sprite.spritecollide(ship, asteroids, True):
+        if sprite.spritecollide(ship, monsters, True):
             life -= 1
-            if life <= 0:
-                finish = True
-                window.blit(lose, (200, 200))
-
-        if sprite.spritecollide(ship, asteroids, False):
-            finish = True
-            window.blit(lose, (200, 200))
+            show_life_lost = True
+            life_lost_time = timer()
+            life_message = f"¡Te quedan {life} vidas!" if life > 0 else "¡Te quedaste sin vidas!"
+        
+        if sprite.spritecollide(ship, asteroids, True):
+            life -= 1
+            show_life_lost = True
+            life_lost_time = timer()
+            life_message = f"¡Te quedan {life} vidas!" if life > 0 else "¡Te quedaste sin vidas!"
 
         if rel_time:
             now_time = timer()
@@ -156,24 +168,26 @@ while run:
                 num_fire = 0
                 rel_time = False
 
+        if sprite.spritecollide(ship, monsters, True):
+            life -= 1
+            show_life_lost = True
+            life_lost_time = timer()
+        if life <= 0:
+              finish = True
+
+        if sprite.spritecollide(ship, asteroids, True):
+            life -= 1
+            show_life_lost = True
+            life_lost_time = timer()
+        if life <= 0:
+            finish = True
+
         if score >= goal:
             finish = True
             window.blit(win, (200, 200))
+        elif life <= 0 or lost >= max_lost:
+            finish = True
+            window.blit(lose, (200, 200))
 
-        display.update()
-        
-    else:
-        finish = False
-        score = 0
-        lost = 0
-        num_fire = 0
-        life = 3
-        for b in bullets:
-            b.kill()
-        for m in monsters:
-            m.kill()
-        for a in asteroids:
-            a.kill()
-        time.delay(3000)
-        
-time.delay(50)
+        display.update()  
+        time.delay(30)
